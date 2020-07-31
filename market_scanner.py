@@ -85,5 +85,5 @@ class mainObj:
         print("\n\n\n\n--- this took %s seconds to run ---" %
               (time.time() - start_time))
 
-
-mainObj().main_func(STANDARD_DEVIATION_CUTOFF)
+while True:
+    mainObj().main_func(STANDARD_DEVIATION_CUTOFF)
