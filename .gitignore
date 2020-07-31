@@ -1,6 +1,11 @@
- .idea/
-__pycache__/
+/__pycache__
 data/nasdaqlisted.txt
 data/otherlisted.txt
 data/alllisted.txt
 data/excluded.txt
+
+# IDE
+/.idea
+
+# Mac stuff
+.DS_Store
