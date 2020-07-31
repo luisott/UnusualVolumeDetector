@@ -47,7 +47,8 @@ class NasdaqController:
                     if i == 0:
                         continue
                     line_split = line.strip().split("|")
-                    if line_split[0] == "" or line_split[1] == "":
+                    #line[6] and line[4] is for ETFs. Let's skip those to make this faster.
+                    if line_split[0] == "" or line_split[1] == "" or (filename == 'nasdaqlisted' and line_split[6] == 'Y') or (filename == 'otherlisted' and line_split[4] == 'Y'):
                         continue
                     all_tickers.append(line)
         # Compile list of tickers to exclude
