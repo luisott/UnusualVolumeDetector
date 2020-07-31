@@ -11,12 +11,15 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 import multiprocessing
 
+DAYS_TO_LOOK_BACK = 3
+MONTHS_TO_COMPARE = 5
+STANDARD_DEVIATION_CUTOFF = 10
 
 class mainObj:
     def getData(self, ticker):
         currentDate = datetime.datetime.strptime(
             date.today().strftime("%Y-%m-%d"), "%Y-%m-%d")
-        pastDate = currentDate - dateutil.relativedelta.relativedelta(months=5)
+        pastDate = currentDate - dateutil.relativedelta.relativedelta(months=MONTHS_TO_COMPARE)
         sys.stdout = open(os.devnull, "w")
         data = yf.download(ticker, pastDate, currentDate)
         sys.stdout = sys.__stdout__
@@ -68,7 +71,7 @@ class mainObj:
         d = (self.find_anomalies_two(self.getData(x), cutoff))
         if d['Dates']:
             for i in range(len(d['Dates'])):
-                if self.days_between(str(currentDate)[:-9], str(d['Dates'][i])) <= 3:
+                if self.days_between(str(currentDate)[:-9], str(d['Dates'][i])) <= DAYS_TO_LOOK_BACK:
                     self.customPrint(d, x)
 
     def main_func(self, cutoff):
@@ -83,6 +86,4 @@ class mainObj:
               (time.time() - start_time))
 
 
-# input desired anomaly standard deviation cuttoff
-# run time around 50 minutes for every single ticker.
-mainObj().main_func(10)
+mainObj().main_func(STANDARD_DEVIATION_CUTOFF)
