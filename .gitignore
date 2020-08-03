@@ -1,4 +1,6 @@
-/__pycache__
+.DS_Store
+__pycache__/
+__pycache__
 data/nasdaqlisted.txt
 data/otherlisted.txt
 data/alllisted.txt

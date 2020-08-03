@@ -8,41 +8,42 @@ import numpy as np
 import sys
 from stocklist import NasdaqController
 from tqdm import tqdm
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, parallel_backend
 import multiprocessing
 
-DAYS_TO_LOOK_BACK = 3
-MONTHS_TO_COMPARE = 5
-STANDARD_DEVIATION_CUTOFF = 10
+###########################
+# THIS IS THE MAIN SCRIPT #
+###########################
+
+# Change variables to your liking then run the script
+MONTH_CUTTOFF = 5
+DAY_CUTTOFF = 3
+STD_CUTTOFF = 10
+
 
 class mainObj:
+
+    def __init__(self):
+        pass
+
     def getData(self, ticker):
+        global MONTH_CUTOFF
         currentDate = datetime.datetime.strptime(
             date.today().strftime("%Y-%m-%d"), "%Y-%m-%d")
-        pastDate = currentDate - dateutil.relativedelta.relativedelta(months=MONTHS_TO_COMPARE)
+        pastDate = currentDate - \
+            dateutil.relativedelta.relativedelta(months=MONTH_CUTTOFF)
         sys.stdout = open(os.devnull, "w")
         data = yf.download(ticker, pastDate, currentDate)
         sys.stdout = sys.__stdout__
         return data[["Volume"]]
 
-    def find_anomalies(self, data, cutoff):
-        anomalies = []
-        data_std = np.std(data['Volume'])
-        data_mean = np.mean(data['Volume'])
-        anomaly_cut_off = data_std * cutoff
-        upper_limit = data_mean + anomaly_cut_off
-        indexs = data[data['Volume'] > upper_limit].index.tolist()
-        outliers = data[data['Volume'] > upper_limit].Volume.tolist()
-        index_clean = [str(x)[:-9] for x in indexs]
-        d = {'Dates': index_clean, 'Volume': outliers}
-        return d
-
-    def find_anomalies_two(self, data, cutoff):
+    def find_anomalies(self, data):
+        global STD_CUTTOFF
         indexs = []
         outliers = []
         data_std = np.std(data['Volume'])
         data_mean = np.mean(data['Volume'])
-        anomaly_cut_off = data_std * cutoff
+        anomaly_cut_off = data_std * STD_CUTTOFF
         upper_limit = data_mean + anomaly_cut_off
         data.reset_index(level=0, inplace=True)
         for i in range(len(data)):
@@ -67,22 +68,39 @@ class mainObj:
         d2 = datetime.datetime.strptime(d2, "%Y-%m-%d")
         return abs((d2 - d1).days)
 
-    def parallel_wrapper(self,x, cutoff, currentDate):
-        d = (self.find_anomalies_two(self.getData(x), cutoff))
+    def parallel_wrapper(self, x, currentDate, positive_scans):
+        global DAY_CUTTOFF
+        d = (self.find_anomalies(self.getData(x)))
         if d['Dates']:
             for i in range(len(d['Dates'])):
-                if self.days_between(str(currentDate)[:-9], str(d['Dates'][i])) <= DAYS_TO_LOOK_BACK:
+                if self.days_between(str(currentDate)[:-9], str(d['Dates'][i])) <= DAY_CUTTOFF:
                     self.customPrint(d, x)
+                    stonk = dict()
+                    stonk['Ticker'] = x
+                    stonk['TargetDate'] = d['Dates'][0]
+                    stonk['TargetVolume'] = str(
+                        '{:,.2f}'.format(d['Volume'][0]))[:-3]
+                    positive_scans.append(stonk)
 
-    def main_func(self, cutoff):
-        StocksController = NasdaqController(False)
+    def main_func(self):
+        StocksController = NasdaqController(True)
         list_of_tickers = StocksController.getList()
         currentDate = datetime.datetime.strptime(
             date.today().strftime("%Y-%m-%d"), "%Y-%m-%d")
         start_time = time.time()
-        Parallel(n_jobs=multiprocessing.cpu_count())(delayed(self.parallel_wrapper)(x, cutoff, currentDate) for x in tqdm(list_of_tickers) )
+
+        manager = multiprocessing.Manager()
+        positive_scans = manager.list()
+
+        with parallel_backend('loky', n_jobs=multiprocessing.cpu_count()):
+            Parallel()(delayed(self.parallel_wrapper)(x, currentDate, positive_scans)
+                       for x in tqdm(list_of_tickers))
 
         print("\n\n\n\n--- this took %s seconds to run ---" %
               (time.time() - start_time))
 
-mainObj().main_func(STANDARD_DEVIATION_CUTOFF)
+        return positive_scans
+
+
+if __name__ == '__main__':
+    mainObj().main_func()
